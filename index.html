@@ -1,0 +1,1493 @@
+<!-- VERSIÓN DE DESPLIEGUE FORZADO 2.0 - Omitiendo cola de GitHub Actions -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Asistencia TURNO NOCHE</title>
+    <!-- Librerías Externas -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* ==========================================
+           VARIABLES Y DISEÑO BASE
+           ========================================== */
+        :root {
+            --bg-body: linear-gradient(135deg, #F5F5F7 0%, #EAEAEF 100%);
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --bg-solid: #FFFFFF;
+            --bg-subtle: #FAFAFA;
+            --text-main: #1D1D1F;
+            --text-muted: #86868B;
+            --border: #E5E5EA;
+            
+            --primary: #28234D; --primary-hover: #1a1636;
+            --danger: #FF3B30; --success: #34C759;
+            --accent: #007AFF; --warning: #FFCC00;
+
+            --bg-row-hover: #F9F9FB; --bg-zebra: rgba(0,0,0,0.015);
+            --shadow-sm: rgba(0,0,0,0.03); --shadow-md: rgba(0,0,0,0.08);
+            --bg-free: #E0E0E0;
+        }
+
+        body.dark-mode {
+            --bg-body: linear-gradient(135deg, #121212 0%, #1A1A1E 100%);
+            --bg-card: rgba(30, 30, 34, 0.95); --bg-solid: #1E1E22; --bg-subtle: #252529;
+            --text-main: #F5F5F7; --text-muted: #A1A1A6; --border: #333338;
+            --primary: #8278C9; --danger: #FF453A; --success: #32D74B; --accent: #0A84FF;
+            --bg-row-hover: #2A2A2F; --bg-zebra: rgba(255,255,255,0.02);
+            --bg-free: #3a3a3c;
+        }
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px; background: var(--bg-body); color: var(--text-main); font-size: 12px; transition: background 0.3s, color 0.3s; }
+        .container { background: var(--bg-card); padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px var(--shadow-md); max-width: 1600px; margin: auto; }
+        
+        /* BANNER Y ENCABEZADO */
+        .main-banner { background: var(--primary); color: white; padding: 12px 20px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
+        .main-banner h2 { margin: 0; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;}
+        .banner-info { display: flex; align-items: center; gap: 15px; font-size: 14px; font-weight: 600; }
+        .theme-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 6px 14px; cursor: pointer; color: white; font-weight: 600; font-size: 11px; transition: 0.2s;}
+        
+        /* Tabs */
+        .tabs { display: flex; background: var(--border); padding: 4px; border-radius: 10px; gap: 4px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;}
+        .tab-btn { background: transparent; border: none; padding: 10px 14px; font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: 0.2s; flex: 0 0 auto;}
+        .tab-btn.active { background: var(--bg-solid); color: var(--text-main); box-shadow: 0 2px 8px var(--shadow-md); }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Contenedores y Tablas */
+        .section-box { border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 15px; background: var(--bg-solid); box-shadow: 0 2px 8px var(--shadow-sm); }
+        .table-container { overflow-x: auto; background: var(--bg-solid); border-radius: 10px; border: 1px solid var(--border); max-height: 500px; -webkit-overflow-scrolling: touch;}
+        .swap-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        .swap-table th { background: var(--bg-subtle); padding: 10px; border-bottom: 1px solid var(--border); color: var(--text-muted); position: sticky; top: 0; z-index: 1; font-weight: 700; white-space: nowrap; cursor: pointer;}
+        .swap-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+        .swap-table tbody tr:hover { background: var(--bg-row-hover); }
+
+        .table-grid th, .table-grid td { padding: 6px 4px; text-align: center; font-size: 11px; white-space: nowrap;}
+        .table-grid th:nth-child(1), .table-grid th:nth-child(2), .table-grid th:nth-child(3), .table-grid th:nth-child(4), .table-grid th:nth-child(5), .table-grid th:nth-child(6) { text-align: left; cursor: pointer; }
+        .table-grid td:nth-child(1), .table-grid td:nth-child(2), .table-grid td:nth-child(3), .table-grid td:nth-child(4), .table-grid td:nth-child(5), .table-grid td:nth-child(6) { text-align: left; }
+
+        /* Formularios y Botones */
+        .form-control { padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-solid); color: var(--text-main); font-size: 12px; font-weight: 600; box-sizing: border-box; width: 100%; }
+        button { cursor: pointer; font-weight: 600; border-radius: 6px; padding: 8px 12px; border: none; font-size: 12px; transition: 0.2s;}
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        
+        /* Flex y Grid */
+        .responsive-flex { display: flex; gap: 10px; align-items: flex-end; }
+        .responsive-flex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+        .responsive-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .responsive-grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; }
+        
+        /* Dashboard Widgets */
+        .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .widget { border-radius: 16px; padding: 20px; display: flex; flex-direction: column; box-shadow: 0 4px 15px var(--shadow-md); transition: transform 0.2s ease, box-shadow 0.2s ease; border-left: 5px solid; }
+        .widget:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .w-header { font-size: 14px; font-weight: 800; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; }
+        .w-value { font-size: 36px; font-weight: 900; line-height: 1.2;}
+        
+        .w-green { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left-color: #16a34a; color: #166534; }
+        .w-red { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-left-color: #dc2626; color: #991b1b; }
+        .w-orange { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border-left-color: #ea580c; color: #9a3412; }
+        .w-blue { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-left-color: #2563eb; color: #1e40af; }
+        
+        body.dark-mode .w-green { background: linear-gradient(135deg, #14532d 0%, #064e3b 100%); color: #86efac; border-left-color: #22c55e;}
+        body.dark-mode .w-red { background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%); color: #fca5a5; border-left-color: #ef4444;}
+        body.dark-mode .w-orange { background: linear-gradient(135deg, #7c2d12 0%, #431407 100%); color: #fdba74; border-left-color: #f97316;}
+        body.dark-mode .w-blue { background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%); color: #93c5fd; border-left-color: #3b82f6;}
+
+        /* Graficos y Charts */
+        #charts-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; justify-items: center; padding: 10px 0;}
+        .chart-box { position: relative; height: 130px; width: 130px; }
+        .chart-title { text-align: center; font-weight: 700; font-size: 11px; margin-bottom: 5px; text-transform: uppercase;}
+
+        .input-group { width: 100%; }
+        .input-group label { display: block; font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; }
+        details { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 15px; cursor: pointer; }
+        summary { font-weight: 700; color: var(--accent); outline: none; }
+        
+        .ast-input { width: 140px; text-align: left; font-weight: 700; font-size: 12px; }
+        .ast-P { color: var(--success); font-weight: bold;}
+        .ast-A { color: var(--danger); font-weight: bold;}
+        .ast-D { color: var(--text-muted); font-weight: bold;}
+        .ast-PE { color: var(--accent); font-weight: bold;}
+        .ast-other { color: var(--warning-dark); font-weight: bold;}
+
+        /* ==========================================
+           MODO CELULAR (RESPONSIVE)
+           ========================================== */
+        @media (max-width: 768px) {
+            .container { padding: 10px; border-radius: 10px; }
+            .main-banner { flex-direction: column; text-align: center; padding: 15px; }
+            .banner-info { justify-content: center; width: 100%; flex-wrap: wrap;}
+            .responsive-flex, .responsive-flex-header { flex-direction: column; align-items: stretch; gap: 10px; }
+            .responsive-grid, .responsive-grid-2-1 { grid-template-columns: 1fr; }
+            button { padding: 12px; font-size: 13px; width: 100%; margin-top: 5px; }
+            .btn-outline { width: auto; padding: 6px 10px; margin: 2px;} 
+            .input-group input, .input-group select { width: 100% !important; }
+            .tabs { justify-content: flex-start; padding-bottom: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="main-banner">
+        <h2>Control de Asistencia TURNO NOCHE</h2>
+        <div class="banner-info">
+            <span id="live-date">--/--/----</span> | 
+            <span id="live-time">--:--:--</span> | 
+            <span id="live-temp">--°C</span>
+            <button class="theme-btn" onclick="toggleTheme()" style="width:auto;"><span id="theme-icon">🌙</span> Tema</button>
+        </div>
+    </div>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tab-asistencia', event)">📝 Asistencia Diaria</button>
+        <button class="tab-btn" onclick="switchTab('tab-resumen', event)">📊 Resumen</button>
+        <button class="tab-btn" onclick="switchTab('tab-historico', event)">📅 Histórico Mensual</button>
+        <button class="tab-btn" onclick="switchTab('tab-permisos', event)">🏥 Permisos y Licencias</button>
+        <button class="tab-btn" onclick="switchTab('tab-gestion', event)">👥 Gestión de Personal</button>
+        <button class="tab-btn" onclick="switchTab('tab-direcciones', event)">🚗 Transporte & Dir.</button>
+        <button class="tab-btn" onclick="switchTab('tab-parametros', event)">⚙️ Parámetros</button>
+    </div>
+
+    <!-- 1. ASISTENCIA DIARIA -->
+    <div id="tab-asistencia" class="tab-content active">
+        <div class="section-box">
+            <div class="responsive-flex-header">
+                <h4 style="margin:0;">Registro de Asistencia Diaria</h4>
+                <div class="responsive-flex">
+                    <div class="input-group">
+                        <label>Buscar Nombre:</label>
+                        <input type="text" id="filtroNombreAsistencia" class="form-control" placeholder="Escribir nombre..." onkeyup="renderAsistencia()">
+                    </div>
+                    <div class="input-group">
+                        <label>Filtrar por Área:</label>
+                        <select id="filtroAreaAsistencia" class="form-control" onchange="renderAsistencia()"></select>
+                    </div>
+                    <div class="input-group">
+                        <label>Fecha a evaluar:</label>
+                        <input type="date" id="fechaAsistencia" class="form-control" onchange="cambiarFecha()">
+                    </div>
+                    <button class="btn-success" style="height:fit-content;" onclick="rellenarConP()">Rellenar Vacíos</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="swap-table">
+                    <thead><tr><th>RUT</th><th>Nombre Completo</th><th>Empresa</th><th>Área</th><th>Dimensión</th><th>Turno</th><th>Asistencia</th><th>Tiempos (Atraso/HHEE)</th></tr></thead>
+                    <tbody id="tabla-asistencia-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. RESUMEN -->
+    <div id="tab-resumen" class="tab-content">
+        <div class="dash-grid" id="dash-widgets"></div>
+
+        <div class="responsive-grid-2-1">
+            <!-- GRÁFICOS DE CAPACIDAD (ANILLOS) -->
+            <div class="section-box" style="margin:0;">
+                <h4 style="margin-top:0; color:var(--text-main);">📊 Capacidad Operativa vs Instalada</h4>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: -10px;">Porcentaje de personal presente vs esperado por Área. <span style="color:var(--danger); font-weight:bold;">Alerta Roja si es < 80%</span>.</p>
+                <div id="charts-container"></div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <!-- PERMISOS DEL DÍA SIGUIENTE -->
+                <div class="section-box" style="border-color: var(--warning); background: var(--w-orange-bg); margin:0;">
+                    <div class="responsive-flex-header" style="border:none; padding:0;">
+                        <h4 style="margin:0; color: var(--w-orange-text);">📅 Permisos programados para mañana</h4>
+                    </div>
+                    <div class="table-container" style="max-height: 100px; background: transparent; border: none;">
+                        <table class="swap-table" style="font-size: 11px;">
+                            <thead><tr><th>Nombre</th><th>Área</th><th>Permiso</th></tr></thead>
+                            <tbody id="tabla-permisos-manana"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- RESUMEN DE DOTACIÓN EXPECTADA -->
+                <div class="section-box" style="margin:0;">
+                    <h4 style="margin-top:0;">Resumen de Dotación Esperada</h4>
+                    <div class="table-container" style="max-height: 120px;">
+                        <table class="swap-table">
+                            <thead><tr><th>Área</th><th>Total Esperado</th><th>Total Presentes</th><th>Brecha</th></tr></thead>
+                            <tbody id="tabla-resumen-areas"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-box" style="background:var(--bg-subtle);">
+            <div class="responsive-flex-header" style="border:none; padding:0;">
+                <h4 style="margin:0; color:var(--text-main);">⏱️ Control de Días Extras (EX), HHEE y Atrasos</h4>
+                <div class="responsive-flex">
+                    <div class="input-group"><label>Buscar Nombre</label><input type="text" id="filtroNomExt" class="form-control" onkeyup="calcularExtras()" placeholder="..."></div>
+                    <div class="input-group"><label>Desde</label><input type="date" id="extInicio" class="form-control"></div>
+                    <div class="input-group"><label>Hasta</label><input type="date" id="extFin" class="form-control"></div>
+                    <button class="btn-primary" onclick="calcularExtras()">Calcular Rango</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="responsive-grid-2-1">
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <div class="section-box" style="margin:0; border-color:var(--accent);">
+                    <div class="responsive-flex-header" style="padding:0; border:none; margin-bottom: 10px;">
+                        <h4 style="margin:0; color:var(--accent);">💵 Detalle de Días Extras (EX) y HHEE</h4>
+                        <button class="btn-success" style="width:auto;" onclick="exportarExcel('tabla-export-hhee', 'Detalle_HHEE')">⬇️ Copiar a Excel</button>
+                    </div>
+                    <div class="table-container" style="max-height: 250px;">
+                        <table class="swap-table" id="tabla-export-hhee">
+                            <thead><tr><th>Fecha</th><th>Nombre</th><th>Área</th><th>Tipo</th><th>Tiempo</th><th>Tarifa (%)</th><th>Bono Asignado</th><th>Acción</th></tr></thead>
+                            <tbody id="tabla-extras-rango"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section-box" style="margin:0; border-color:var(--success);">
+                    <h4 style="margin:0 0 10px 0; color:var(--success);">📊 Resumen de Inversión HHEE por Área</h4>
+                    <div class="table-container" style="max-height: 200px;">
+                        <table class="swap-table">
+                            <thead><tr><th>Área</th><th>Total Horas</th><th>Total Bono ($)</th></tr></thead>
+                            <tbody id="tabla-hhee-resumen-area"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-box" style="margin:0; border-color:var(--danger);">
+                <h4 style="margin-top:0; color:var(--danger);">⚠️ Registro de Atrasos</h4>
+                <div class="table-container" style="max-height: 300px;"><table class="swap-table">
+                    <thead><tr><th>Fecha</th><th>Nombre</th><th>Minutos</th><th>Validación</th><th>Acción</th></tr></thead>
+                    <tbody id="tabla-atrasos-rango"></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. HISTÓRICO MENSUAL -->
+    <div id="tab-historico" class="tab-content">
+        <div class="section-box" style="background:var(--bg-subtle);">
+            <div class="responsive-flex-header" style="border:none; padding:0; margin:0;">
+                <div class="responsive-flex" style="width:100%;">
+                    <div class="input-group">
+                        <label>Filtrar por Mes:</label>
+                        <input type="month" id="mesHistorico" class="form-control" onchange="renderHistorico()">
+                    </div>
+                    <div class="input-group">
+                        <label>Filtrar por Área:</label>
+                        <select id="filtroAreaHist" class="form-control" onchange="renderHistorico()"></select>
+                    </div>
+                    <div class="input-group">
+                        <label>Buscar Nombre:</label>
+                        <input type="text" id="filtroNombreHist" class="form-control" placeholder="Escribir nombre..." onkeyup="renderHistorico()">
+                    </div>
+                    <button class="btn-success" onclick="exportarExcel('tabla-hist-grid-export', 'Historico_Mes')">⬇️ Descargar a Excel</button>
+                </div>
+            </div>
+            <span style="font-size:11px; color:var(--text-muted); display:block; margin-top:10px;">Clic en encabezados para ordenar. Días libres en <b>plomo</b>.</span>
+        </div>
+
+        <div class="section-box" style="margin:0; padding: 0; overflow:hidden; margin-bottom: 15px;">
+            <div class="table-container" style="max-height: 500px; border:none; border-radius:0;">
+                <table class="swap-table table-grid" id="tabla-hist-grid-export">
+                    <thead id="thead-hist-grid"></thead>
+                    <tbody id="tbody-hist-grid"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section-box" style="margin-bottom: 15px;">
+            <div class="responsive-flex-header" style="margin-bottom:10px; padding:0; border:none;">
+                <h4 style="margin:0;">Resumen de Asistencia por Área</h4>
+                <input type="month" id="mesResumenArea" class="form-control" style="width:auto;" onchange="calcularResumenMes()">
+            </div>
+            <div class="table-container" style="max-height: 250px;"><table class="swap-table">
+                <thead><tr><th>Área</th><th>Total P</th><th>Total A</th><th>Total LM</th><th>T. Otros</th></tr></thead>
+                <tbody id="tabla-hist-area"></tbody>
+            </table></div>
+        </div>
+    </div>
+
+    <!-- 4. PERMISOS Y LICENCIAS -->
+    <div id="tab-permisos" class="tab-content">
+        <div class="section-box" style="background:var(--bg-subtle);">
+            <div class="responsive-flex-header" style="padding:0; border:none; margin:0;">
+                <div class="responsive-flex" style="width:100%;">
+                    <div class="input-group">
+                        <label>Filtrar por Área:</label>
+                        <select id="filtroAreaPermisosVer" class="form-control" onchange="actualizarVistas()"></select>
+                    </div>
+                    <div class="input-group">
+                        <label>Filtrar por Mes:</label>
+                        <input type="month" id="mesPermisos" class="form-control" onchange="actualizarVistas()">
+                    </div>
+                    <div class="input-group">
+                        <label>Día Exacto (Opcional):</label>
+                        <input type="date" id="filtroDiaPermiso" class="form-control" onchange="actualizarVistas()">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="responsive-grid">
+            <div class="section-box" style="margin:0;">
+                <h4 style="margin-top:0;">Detalle de Permisos Tomados</h4>
+                <div class="table-container" style="max-height: 400px;"><table class="swap-table">
+                    <thead><tr><th>Fecha</th><th>Área</th><th>Nombre</th><th>Sigla</th><th>Acción</th></tr></thead>
+                    <tbody id="tabla-detalle-permisos"></tbody>
+                </table></div>
+            </div>
+            <div class="section-box" style="margin:0;">
+                <h4 style="margin-top:0;">Resumen Global por Día</h4>
+                <div class="table-container" style="max-height: 400px;"><table class="swap-table">
+                    <thead><tr><th>Día del Mes</th><th>C</th><th>LM</th><th>V</th><th>PG</th><th>PS</th><th>ADM</th><th>CM</th><th>Total</th></tr></thead>
+                    <tbody id="tabla-resumen-permisos"></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <details class="section-box" style="margin-top: 15px; border-color: var(--accent);">
+            <summary style="color:var(--accent);">➕ Asignar Permiso en Rango de Fechas (Clic para expandir)</summary>
+            <div style="padding-top:10px;">
+                <div class="responsive-flex" style="margin-bottom:10px;">
+                    <div class="input-group"><label>Filtrar Área</label><select id="filtroAreaPermisoAsignar" class="form-control" onchange="renderDesplegablesFormulario()"></select></div>
+                    <div class="input-group"><label>Colaborador</label><select id="permColab" class="form-control"></select></div>
+                    <div class="input-group"><label>Tipo de Permiso</label><select id="permTipo" class="form-control"></select></div>
+                </div>
+                <div class="responsive-flex" style="margin-bottom:15px;">
+                    <div class="input-group"><label>Fecha de Inicio</label><input type="date" id="permInicio" class="form-control"></div>
+                    <div class="input-group"><label>Fecha Final</label><input type="date" id="permFin" class="form-control"></div>
+                </div>
+                <button class="btn-primary" style="width:100%;" onclick="asignarPermisoRango()">Asignar Rango de Permiso</button>
+            </div>
+        </details>
+    </div>
+
+    <!-- 5. GESTIÓN DE PERSONAL -->
+    <div id="tab-gestion" class="tab-content">
+        <div class="section-box">
+            <div class="responsive-flex-header">
+                <h4 style="margin: 0;">Base de Datos Total (Editable)</h4>
+                <div class="input-group" style="width:auto;">
+                    <label>Filtrar por Área:</label>
+                    <select id="filtroAreaGestion" class="form-control" onchange="actualizarVistas()"></select>
+                </div>
+            </div>
+            <div class="table-container" style="max-height: 400px;"><table class="swap-table">
+                <thead id="thead-gestion"></thead>
+                <tbody id="tabla-gestion-body"></tbody>
+            </table></div>
+        </div>
+
+        <div class="responsive-grid">
+            <details class="section-box" style="margin:0;">
+                <summary>➕ Ingreso Manual de Colaborador</summary>
+                <div style="padding-top:10px;">
+                    <div class="responsive-flex" style="margin-bottom:10px;">
+                        <div class="input-group"><label>RUT</label><input type="text" id="addRut" class="form-control"></div>
+                        <div class="input-group"><label>Nombre Completo</label><input type="text" id="addNombre" class="form-control"></div>
+                    </div>
+                    <div class="responsive-flex" style="margin-bottom:10px;">
+                        <div class="input-group"><label>Empresa</label><select id="addEmpresa" class="form-control"></select></div>
+                        <div class="input-group"><label>Área</label><select id="addArea" class="form-control"></select></div>
+                    </div>
+                    <div class="responsive-flex" style="margin-bottom:15px;">
+                        <div class="input-group"><label>Dimensión</label><select id="addDim" class="form-control"></select></div>
+                        <div class="input-group"><label>Turno</label><select id="addTurno" class="form-control"><option>NOCHE 1</option><option>NOCHE 2</option></select></div>
+                    </div>
+                    <button class="btn-primary" style="width:100%;" onclick="agregarColaboradorManual()">Agregar Colaborador</button>
+                </div>
+            </details>
+
+            <details class="section-box" style="margin:0; border-color:var(--success);">
+                <summary style="color:var(--success);">📥 Carga Masiva (Personal y Direcciones Unificado)</summary>
+                <div style="padding-top:10px;">
+                    <p style="font-size:11px; color:var(--text-muted);">Pega tabla desde Excel con 2 columnas (RUT|NOMBRE) o 9 columnas completas.<br> 
+                    ⚠️ <i>Si pegas solo 2, Empresa, Área, Dimensión y Turno se tomarán de los desplegables del panel de ingreso manual.</i></p>
+                    <textarea id="txtPegarPersonal" class="form-control" rows="4" placeholder="Pega los datos aquí..."></textarea>
+                    <button class="btn-success" style="width:100%; margin-top:10px;" onclick="procesarMasivoUnificado()">Cargar y Actualizar</button>
+                </div>
+            </details>
+        </div>
+
+        <div class="section-box" style="margin-bottom: 15px; border-color:var(--danger);">
+            <div class="responsive-flex-header" style="margin-bottom:10px;">
+                <h4 style="margin:0; color:var(--danger);">Solicitud de Reposición (Desvinculados Pendientes)</h4>
+                <button class="btn-outline" style="border-color:var(--success); color:var(--success);" onclick="marcarReposicionSolicitada()">✅ Ya Solicitado (Vaciar)</button>
+            </div>
+            <div class="table-container" style="max-height: 200px;"><table class="swap-table">
+                <thead><tr><th>RUT</th><th>Nombre</th><th>Empresa</th><th>Área</th><th>Turno</th></tr></thead>
+                <tbody id="tabla-reemplazos"></tbody>
+            </table></div>
+        </div>
+    </div>
+
+    <!-- 6. TRANSPORTE Y DIRECCIONES -->
+    <div id="tab-direcciones" class="tab-content">
+        <div class="section-box" style="border-color:var(--accent);">
+            <div class="responsive-flex-header" style="border:none; padding:0;">
+                <h4 style="margin:0; color:var(--accent);">🚐 Nómina de Transporte</h4>
+                <div class="responsive-flex" style="align-items:center;">
+                    <label style="font-weight:700;">Fecha a evaluar:</label>
+                    <input type="date" id="fechaTransporte" class="form-control" style="width:auto;" onchange="actualizarVistas()">
+                </div>
+            </div>
+            <div class="responsive-flex-header" style="margin-bottom:10px;">
+                <p style="font-size:11px; color:var(--text-muted); margin:0;">Incluye a "NOCHE 2" si es domingo, y "NOCHE 1" si es (EX).</p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-success" onclick="exportarExcel('tabla-transporte-raw', 'Nomina_Transporte')">⬇️ Descargar Excel</button>
+                </div>
+            </div>
+            <div class="table-container" style="max-height:300px;">
+                <table class="swap-table">
+                    <thead><tr><th>RUT</th><th>Nombre</th><th>Turno Base</th><th>Área</th><th>Dirección</th><th>Comuna</th><th>Número</th><th>🚗 Móvil Propio</th><th>Quitar</th></tr></thead>
+                    <tbody id="tabla-transporte-body"></tbody>
+                </table>
+                <table id="tabla-transporte-raw" style="display:none;"></table>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <div class="responsive-flex-header">
+                <div class="responsive-flex" style="align-items:center;">
+                    <h4 style="margin:0;">Directorio General de Direcciones</h4>
+                    <div class="input-group" style="margin:0;">
+                        <select id="filtroAreaDirectorio" class="form-control" onchange="renderDirecciones()"></select>
+                    </div>
+                </div>
+                <button class="btn-success" onclick="exportarExcel('tabla-direcciones-raw', 'Direcciones')">⬇️ Descargar Directorio</button>
+            </div>
+            <div class="table-container" style="max-height: 400px;">
+                <table class="swap-table">
+                    <thead id="thead-direcciones"></thead>
+                    <tbody id="tabla-direcciones-body"></tbody>
+                </table>
+                <table id="tabla-direcciones-raw" style="display:none;"></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. PARÁMETROS -->
+    <div id="tab-parametros" class="tab-content">
+        <div class="section-box" style="background:var(--w-blue-bg); border-color:var(--w-blue-border);">
+            <h4 style="margin-top:0; color:var(--w-blue-text);">Configuración de Áreas, Dotación y Estilo</h4>
+            <div class="responsive-flex" style="margin-bottom:15px;">
+                <div class="input-group"><label>Nombre del Área</label><input type="text" id="parArea" class="form-control"></div>
+                <div class="input-group"><label>Color Área</label><input type="color" id="parColor" class="form-control" value="#007AFF" style="padding: 2px;"></div>
+                <div class="input-group"><label>Dotación N1</label><input type="number" id="parN1" class="form-control" value="0"></div>
+                <div class="input-group"><label>Dotación N2</label><input type="number" id="parN2" class="form-control" value="0"></div>
+                <button class="btn-primary" onclick="addArea()">Añadir</button>
+            </div>
+            <p style="font-size:11px; color:var(--text-muted);">* Modifica la dotación editando directamente las casillas. Requiere clave.</p>
+            <div class="table-container" style="max-height:200px;"><table class="swap-table">
+                <thead><tr><th>Área</th><th>Color Gráfico</th><th>Dot. N1</th><th>Dot. N2</th><th>Total Esperado</th><th>🗑️</th></tr></thead>
+                <tbody id="tabla-par-areas"></tbody>
+            </table></div>
+        </div>
+
+        <div class="responsive-grid">
+            <div class="section-box" style="margin:0;">
+                <h4 style="margin-top:0;">Empresas</h4>
+                <div class="responsive-flex" style="margin-bottom:10px;">
+                    <input type="text" id="parEmpresa" class="form-control">
+                    <button class="btn-primary" style="width:auto;" onclick="addParam('empresas', 'parEmpresa')">Añadir</button>
+                </div>
+                <ul id="lista-empresas" style="padding-left:20px; font-weight:600;"></ul>
+            </div>
+            <div class="section-box" style="margin:0;">
+                <h4 style="margin-top:0;">Dimensionamientos</h4>
+                <div class="responsive-flex" style="margin-bottom:10px;">
+                    <input type="text" id="parDim" class="form-control">
+                    <button class="btn-primary" style="width:auto;" onclick="addParam('dims', 'parDim')">Añadir</button>
+                </div>
+                <ul id="lista-dims" style="padding-left:20px; font-weight:600;"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ==========================================
+       TIEMPO REAL Y CLIMA (API Open-Meteo para Renca)
+       ========================================== */
+    function updateDateTime() {
+        const now = new Date();
+        document.getElementById('live-date').innerText = now.toLocaleDateString('es-CL');
+        document.getElementById('live-time').innerText = now.toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    }
+    setInterval(updateDateTime, 1000); updateDateTime();
+
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=-33.40&longitude=-70.73&current_weather=true')
+        .then(res => res.json())
+        .then(data => { document.getElementById('live-temp').innerText = data.current_weather.temperature + '°C'; })
+        .catch(e => document.getElementById('live-temp').innerText = '--°C');
+
+    /* ==========================================
+       CONFIGURACIÓN DE SEGURIDAD Y NUBE
+       ========================================== */
+    const CLAVE_ADMIN = "admin123"; 
+    const URL_GOOGLE = "https://script.google.com/macros/s/AKfycbweLtJ1Zhr1mnL1-RiB_nCTO0PoR-wc484BaaQ1q-aQcimjK-N1_lPEvzuFWTZ9nMHW/exec";
+
+    function pedirClave() { return prompt("Se requiere autorización. Ingrese clave:") === CLAVE_ADMIN; }
+
+    /* ==========================================
+       BASE DE DATOS
+       ========================================== */
+    let db = JSON.parse(localStorage.getItem('asisDBUltra'));
+    if (!db) {
+        db = {
+            empresas: ["Empresa Alpha", "Empresa Beta"], dims: ["SUPERVISOR", "OPERADOR", "ADMINISTRATIVO"],
+            areas: [ { id: "A1", nombre: "Planta Central", n1: 10, n2: 10, color: "#0A84FF" }, { id: "A2", nombre: "Bodega Norte", n1: 5, n2: 5, color: "#32D74B" } ],
+            empleados: []
+        };
+    } else {
+        db.empleados.forEach(e => { 
+            if(!e.atrasos) e.atrasos = {}; 
+            if(e.anticipos) { e.hhee = e.anticipos; delete e.anticipos; } else if (!e.hhee) e.hhee = {}; 
+            if(!e.extras) e.extras = {}; if(!e.transporte) e.transporte = {}; 
+            if(!e.asistencias) e.asistencias = {}; 
+            if(e.reposicionSolicitada === undefined) e.reposicionSolicitada = false;
+            if(e.fechaBaja === undefined) e.fechaBaja = null;
+        });
+        db.areas.forEach(a => { if(!a.color) a.color = "#0A84FF"; });
+    }
+
+    const diccionarioSiglas = { 'P': 'Presente', 'A': 'Ausente', 'C': 'Compensado', 'LM': 'Licencia Médica', 'V': 'Vacaciones', 'PG': 'Permiso con Goce', 'PS': 'Permiso sin Goce', 'ADM': 'Administrativo', 'D': 'Desvinculado', 'LB': 'Libre', 'CM': 'Cumpleaños', 'EX': 'Día Extra' };
+    const opcionesAsistencia = Object.keys(diccionarioSiglas).map(key => ({ v: key, t: diccionarioSiglas[key] }));
+
+    let fechaSelect = document.getElementById('fechaAsistencia'); fechaSelect.value = new Date().toISOString().split('T')[0];
+    document.getElementById('mesHistorico').value = fechaSelect.value.substring(0,7);
+    document.getElementById('mesPermisos').value = fechaSelect.value.substring(0,7);
+    document.getElementById('mesResumenArea').value = fechaSelect.value.substring(0,7);
+    
+    let td = new Date(); td.setDate(td.getDate() + (7 - td.getDay()) % 7); if(td.getDay() !== 0) td.setDate(td.getDate() + 7 - td.getDay());
+    document.getElementById('fechaTransporte').value = td.toISOString().split('T')[0];
+    
+    let defInicio = new Date(); defInicio.setDate(1); document.getElementById('extInicio').value = defInicio.toISOString().split('T')[0];
+    document.getElementById('extFin').value = new Date().toISOString().split('T')[0];
+
+    let sortColGrid = 'nombre'; let sortAscGrid = true;
+    let sortColDir = 'nombre'; let sortAscDir = true;
+    let sortColGest = 'nombre'; let sortAscGest = true;
+
+    /* Plugin customizado para texto central en Chart.js (Donas) */
+    Chart.register({
+        id: 'centerTextPlugin',
+        beforeDraw: function(chart) {
+            if (chart.config.options.elements.center) {
+                var ctx = chart.ctx; var centerConfig = chart.config.options.elements.center;
+                ctx.restore();
+                var fontSize = (chart.height / 80).toFixed(2);
+                ctx.font = "bold " + fontSize + "em sans-serif"; ctx.textBaseline = "middle";
+                ctx.fillStyle = centerConfig.color || '#1D1D1F';
+                var text = centerConfig.text, textX = Math.round((chart.width - ctx.measureText(text).width) / 2), textY = chart.height / 2;
+                ctx.fillText(text, textX, textY);
+                ctx.save();
+            }
+        }
+    });
+    window.gaugeCharts = [];
+
+    /* ==========================================
+       FUNCIONES DE NUBE (1 MINUTO AUTO-GUARDADO)
+       ========================================== */
+    function guardarDB() { localStorage.setItem('asisDBUltra', JSON.stringify(db)); }
+    setInterval(() => {
+        if(typeof URL_GOOGLE !== 'undefined' && URL_GOOGLE !== "ESTA_ES_TU_URL") {
+            fetch(URL_GOOGLE, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(db), redirect: 'follow' }).catch(e => console.error(e));
+        }
+    }, 60000); 
+
+    window.onload = function() {
+        actualizarVistas(); 
+        if(typeof URL_GOOGLE !== 'undefined' && URL_GOOGLE !== "ESTA_ES_TU_URL") {
+            fetch(URL_GOOGLE, { method: 'GET', redirect: 'follow' })
+            .then(res => res.json())
+            .then(data => { if(data && data.empleados) { db = data; localStorage.setItem('asisDBUltra', JSON.stringify(db)); actualizarVistas(); } }).catch(e => console.error(e));
+        }
+    };
+
+    /* ==========================================
+       FUNCIONES DE INTERFAZ GENERALES
+       ========================================== */
+    function toggleTheme() { document.body.classList.toggle('dark-mode'); document.getElementById('theme-icon').innerText = document.body.classList.contains('dark-mode') ? '☀️' : '🌙'; actualizarVistas(); }
+    function switchTab(id, e) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active'); e.currentTarget.classList.add('active');
+        actualizarVistas();
+    }
+    function actualizarVistas() {
+        try { renderParametros(); } catch(e){}
+        try { renderDesplegablesFormulario(); } catch(e){}
+        try { renderAsistencia(); } catch(e){}
+        try { renderDirecciones(); } catch(e){}
+        try { renderTransporteDomingo(); } catch(e){}
+        try { renderGestion(); } catch(e){}
+        try { calcularResumenHoy(); } catch(e){}
+        try { renderHistorico(); } catch(e){}
+        try { calcularExtras(); } catch(e){}
+        try { renderPermisos(); } catch(e){}
+        try { calcularResumenMes(); } catch(e){}
+    }
+    function generarSelect(listaOpciones, valorActual, funcionOnchange) {
+        let html = `<select class="form-control" onchange="${funcionOnchange}">`;
+        listaOpciones.forEach(op => { html += `<option value="${op}" ${op === valorActual ? 'selected' : ''}>${op}</option>`; });
+        return html + `</select>`;
+    }
+    function handleEnter(e, currentInput) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); 
+            let inputs = Array.from(document.querySelectorAll('.ast-input'));
+            let index = inputs.indexOf(currentInput);
+            if (index >= 0 && index < inputs.length - 1) { inputs[index + 1].focus(); }
+        }
+    }
+
+    /* ==========================================
+       PESTAÑA: ASISTENCIA Y RESUMEN DIARIO
+       ========================================== */
+    function cambiarFecha() { actualizarVistas(); }
+    function rellenarConP() {
+        let f = fechaSelect.value;
+        let dWeek = new Date(f + "T12:00:00").getDay();
+        let validos = db.empleados.filter(e => e.activo || (e.fechaBaja && f <= e.fechaBaja));
+        validos.forEach(emp => { 
+            if(!emp.asistencias[f]) {
+                let isFree = false;
+                if (emp.turno === 'NOCHE 1' && (dWeek === 6 || dWeek === 0)) isFree = true;
+                if (emp.turno === 'NOCHE 2' && (dWeek === 5 || dWeek === 6)) isFree = true;
+                emp.asistencias[f] = isFree ? 'LB' : 'P'; 
+            }
+        });
+        guardarDB(); renderAsistencia(); calcularResumenHoy();
+    }
+
+    function renderAsistencia() {
+        const tbody = document.getElementById('tabla-asistencia-body'); tbody.innerHTML = '';
+        let f = fechaSelect.value;
+        let areaFiltro = document.getElementById('filtroAreaAsistencia').value;
+        let nomFiltro = document.getElementById('filtroNombreAsistencia').value.toLowerCase();
+        let validos = db.empleados.filter(e => e.activo || (e.fechaBaja && f <= e.fechaBaja));
+        validos.forEach(emp => {
+            if (areaFiltro !== "Todas" && emp.area !== areaFiltro) return;
+            if (nomFiltro && !emp.nombre.toLowerCase().includes(nomFiltro)) return;
+
+            let astHoy = emp.asistencias[f] || ''; 
+            let colorClase = astHoy === 'P' ? 'ast-P' : (astHoy === 'EX' ? 'ast-PE' : (astHoy === 'A' ? 'ast-A' : (astHoy === 'D' ? 'ast-D' : (astHoy !== '' ? 'ast-other' : ''))));
+            
+            let selAst = `<select class="form-control ast-input ${colorClase}" onchange="marcarAsistenciaSel('${emp.rut}', this.value, this)" onkeydown="handleEnter(event, this)">`;
+            selAst += `<option value="" disabled ${astHoy === '' ? 'selected' : ''}>-- Seleccionar --</option>`;
+            opcionesAsistencia.forEach(op => { selAst += `<option value="${op.v}" ${astHoy === op.v ? 'selected' : ''}>${op.v} - ${op.t}</option>`; });
+            selAst += `</select>`;
+
+            let atrObj = emp.atrasos[f]; let antObj = emp.hhee[f];
+            let atrBtnStr = atrObj ? `<button class="btn-outline" style="border-color:var(--danger); color:var(--danger); font-size:10px; margin-right:4px;" onclick="registrarAtraso('${emp.rut}')">${atrObj.minutos}m Atr</button>` : `<button class="btn-outline" style="font-size:10px; margin-right:4px;" onclick="registrarAtraso('${emp.rut}')">⏱️ Atraso</button>`;
+            let antBtnStr = antObj ? `<button class="btn-outline" style="border-color:var(--success); color:var(--success); font-size:10px;" onclick="registrarHHEE('${emp.rut}')">${antObj.horas}h HHEE</button>` : `<button class="btn-outline" style="font-size:10px;" onclick="registrarHHEE('${emp.rut}')">🟢 HHEE</button>`;
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td>${emp.rut}</td><td style="font-weight:700;">${emp.nombre}</td>
+                <td>${emp.empresa}</td><td><span style="font-size:10px; padding:2px 6px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:4px;">${emp.area}</span></td>
+                <td>${emp.dim}</td><td>${emp.turno}</td>
+                <td style="text-align:center; min-width:160px;">${selAst}</td>
+                <td style="text-align:center; white-space:nowrap;">${atrBtnStr}${antBtnStr}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function marcarAsistenciaSel(rut, val, selectElement) {
+        let emp = db.empleados.find(e => e.rut === rut);
+        let f = fechaSelect.value; let dateObj = new Date(f + "T12:00:00"); let isSunday = dateObj.getDay() === 0;
+        if(val === 'D') {
+            if(!pedirClave()) { if(selectElement) selectElement.value = emp.asistencias[f] || ''; return; }
+            if(confirm(`ATENCIÓN: Marcar "D" desvinculará a ${emp.nombre}. ¿Proceder?`)) {
+                emp.activo = false; emp.fechaBaja = f; emp.reposicionSolicitada = false; emp.asistencias[f] = val; 
+                guardarDB(); actualizarVistas(); return;
+            } else { if(selectElement) selectElement.value = emp.asistencias[f] || ''; return; }
+        }
+        if(emp.asistencias[f] === 'D' && val !== 'D') { emp.activo = true; emp.fechaBaja = null; emp.reposicionSolicitada = false; }
+        if(val === 'EX') {
+            let hrsStr = prompt(`Has marcado DÍA EXTRA para ${emp.nombre}.\n¿Cuántas horas trabajó?`, "8");
+            if(hrsStr) {
+                let hrs = parseFloat(hrsStr); let tRate = prompt(`¿A qué porcentaje se pagan estas horas? (Escribe 50 o 100)`, "100");
+                let tipo = tRate === "50" ? "50%" : "100%";
+                let bono = 11000; if(isSunday && hrs > 8 && tipo === "100%") bono = 16000;
+                let finalBono = prompt(`Calculado: Horas al ${tipo} con Bono sugerido de $${bono}.\nConfirma o edita el monto del bono (0 si no aplica):`, bono);
+                emp.extras[f] = { horas: hrs, tipo: tipo, bono: parseInt(finalBono) || 0 };
+            } else { if(selectElement) selectElement.value = emp.asistencias[f] || ''; return; }
+        } else { if(emp.extras[f]) delete emp.extras[f]; }
+
+        emp.asistencias[f] = val; 
+        if(selectElement) {
+            let colorClase = val === 'P' ? 'ast-P' : (val === 'EX' ? 'ast-PE' : (val === 'A' ? 'ast-A' : (val === 'D' ? 'ast-D' : (val !== '' ? 'ast-other' : ''))));
+            selectElement.className = "form-control ast-input " + colorClase;
+        }
+        guardarDB(); try{ calcularResumenHoy(); }catch(e){} try{ renderTransporteDomingo(); }catch(e){} try{ renderPermisos(); }catch(e){}
+    }
+
+    function registrarAtraso(rut) {
+        let f = fechaSelect.value; let emp = db.empleados.find(e => e.rut === rut);
+        let minsStr = prompt(`Ingrese minutos de ATRASO para ${emp.nombre}:`, "15");
+        if(minsStr === null) return; let mins = parseInt(minsStr);
+        if(isNaN(mins) || mins < 0) { if(mins === 0 && emp.atrasos[f]) { delete emp.atrasos[f]; guardarDB(); renderAsistencia(); return;} return alert("Inválido."); }
+        if(mins === 0) return;
+        let aut = confirm("¿El atraso está AUTORIZADO?\n[Aceptar] = Sí\n[Cancelar] = No");
+        emp.atrasos[f] = { minutos: mins, autorizado: aut }; guardarDB(); renderAsistencia();
+    }
+
+    function registrarHHEE(rut) {
+        let f = fechaSelect.value; let emp = db.empleados.find(e => e.rut === rut);
+        let hrsStr = prompt(`Ingrese cantidad de HORAS EXTRAS (HHEE) para ${emp.nombre}:`, "1");
+        if(hrsStr === null) return; let hrs = parseFloat(hrsStr);
+        if(isNaN(hrs) || hrs < 0) { if(hrs === 0 && emp.hhee[f]) { delete emp.hhee[f]; guardarDB(); renderAsistencia(); return;} return alert("Inválido."); }
+        if(hrs === 0) return;
+        
+        let dateObj = new Date(f + "T12:00:00"); let isSunday = dateObj.getDay() === 0;
+        let tRate = prompt(`¿A qué porcentaje se pagan estas HHEE? (Escribe 50 o 100)`, "100");
+        let tipo = tRate === "50" ? "50%" : "100%";
+        let bono = 11000; if(isSunday && hrs > 8 && tipo === "100%") bono = 16000;
+        let finalBono = prompt(`Calculado: Horas al ${tipo} con Bono sugerido de $${bono}.\nConfirma o edita el monto del bono (0 si no aplica):`, bono);
+        
+        emp.hhee[f] = { horas: hrs, tipo: tipo, bono: parseInt(finalBono) || 0 }; guardarDB(); renderAsistencia();
+    }
+
+    /* ==========================================
+       PESTAÑA: RESUMEN (Tablas Consolidadas y Dashboard)
+       ========================================== */
+    function calcularResumenHoy() {
+        let f = fechaSelect.value;
+        let dWeek = new Date(f + "T12:00:00").getDay();
+        
+        let presTot = 0, ausTot = 0, otrosTot = 0;
+        let nombresAusentes = []; let nombresOtros = [];
+        let mapAreas = {}; db.areas.forEach(a => { mapAreas[a.nombre] = { n1Esp: a.n1, n2Esp: a.n2, totEsp: 0, presTot: 0, color: a.color }; });
+
+        let validos = db.empleados.filter(e => e.activo || (e.fechaBaja && f <= e.fechaBaja));
+
+        let dManana = new Date(f + "T12:00:00"); dManana.setDate(dManana.getDate() + 1);
+        let fManana = dManana.toISOString().split('T')[0];
+        const tbManana = document.getElementById('tabla-permisos-manana'); if(tbManana) tbManana.innerHTML = '';
+
+        validos.forEach(emp => {
+            let ast = emp.asistencias[f]; let areaData = mapAreas[emp.area];
+            if (ast === 'P' || ast === 'EX') { presTot++; if(areaData) areaData.presTot++; } 
+            else if (ast === 'A') { ausTot++; nombresAusentes.push(emp.nombre); } 
+            else if (ast && ast !== '' && ast !== 'D' && ast !== 'LB') { otrosTot++; nombresOtros.push(`${emp.nombre} (${ast})`); }
+
+            let pManana = emp.asistencias[fManana] || '';
+            if(['C','LM','V','PG','PS','ADM','CM'].includes(pManana)) {
+                let trM = document.createElement('tr');
+                trM.innerHTML = `<td style="font-weight:700;">${emp.nombre}</td><td>${emp.area}</td><td style="color:var(--accent); font-weight:700;">${pManana}</td>`;
+                if(tbManana) tbManana.appendChild(trM);
+            }
+        });
+
+        // Cálculo de Dotación Pendiente desglosado por turno
+        let dotacionPendienteTooltip = [];
+        let totalPendienteGlobal = 0;
+        
+        db.areas.forEach(a => {
+           let idealN1 = a.n1 || 0;
+           let actualN1 = db.empleados.filter(e => e.activo && e.area === a.nombre && e.turno === 'NOCHE 1').length;
+           let pendN1 = Math.max(0, idealN1 - actualN1);
+
+           let idealN2 = a.n2 || 0;
+           let actualN2 = db.empleados.filter(e => e.activo && e.area === a.nombre && e.turno === 'NOCHE 2').length;
+           let pendN2 = Math.max(0, idealN2 - actualN2);
+
+           let pendienteTotalArea = pendN1 + pendN2;
+
+           if(pendienteTotalArea > 0) {
+               totalPendienteGlobal += pendienteTotalArea;
+               let detalles = [];
+               if(pendN1 > 0) detalles.push(`N1: ${pendN1}`);
+               if(pendN2 > 0) detalles.push(`N2: ${pendN2}`);
+               dotacionPendienteTooltip.push(`${a.nombre}: Faltan ${pendienteTotalArea} (${detalles.join(' | ')})`);
+           }
+        });
+
+        let tAus = nombresAusentes.length > 0 ? `title="Ausentes:\n${nombresAusentes.join('\n')}"` : `title="No hay ausentes hoy"`;
+        let tOtr = nombresOtros.length > 0 ? `title="Permisos/Otros:\n${nombresOtros.join('\n')}"` : `title="No hay permisos hoy"`;
+        let tPend = dotacionPendienteTooltip.length > 0 ? `title="${dotacionPendienteTooltip.join('\n')}"` : `title="Dotación completa"`;
+
+        document.getElementById('dash-widgets').innerHTML = `
+            <div class="widget w-green"><div class="w-header">✅ Presentes Hoy</div><div class="w-value">${presTot}</div></div>
+            <div class="widget w-red" ${tAus} style="cursor:help;"><div class="w-header">❌ Ausentes Hoy</div><div class="w-value">${ausTot}</div></div>
+            <div class="widget w-orange" ${tOtr} style="cursor:help;"><div class="w-header">ℹ️ Permisos/Otros</div><div class="w-value">${otrosTot}</div></div>
+            <div class="widget w-blue" ${tPend} style="cursor:help;"><div class="w-header">👤 Dotación Pendiente</div><div class="w-value">${totalPendienteGlobal}</div></div>
+        `;
+
+        const tbody = document.getElementById('tabla-resumen-areas'); tbody.innerHTML = '';
+        const chartsContainer = document.getElementById('charts-container'); chartsContainer.innerHTML = '';
+        
+        // Destruir gráficos anteriores para evitar superposiciones
+        window.gaugeCharts.forEach(c => c.destroy()); window.gaugeCharts = [];
+
+        let isDark = document.body.classList.contains('dark-mode');
+        let textColor = isDark ? '#FFFFFF' : '#1D1D1F';
+        let emptyColor = isDark ? '#333338' : '#E5E5EA';
+
+        let chartIdCounter = 0;
+
+        for(let nombreArea in mapAreas) {
+            let d = mapAreas[nombreArea]; 
+            let tPres = d.presTot; 
+            
+            if (dWeek === 6) d.totEsp = 0; // Sábado
+            else if (dWeek === 5) d.totEsp = d.n1Esp; // Viernes
+            else if (dWeek === 0) d.totEsp = d.n2Esp; // Domingo
+            else d.totEsp = d.n1Esp + d.n2Esp; // Lunes a Jueves
+
+            let brecha = tPres - d.totEsp;
+            let brStr = brecha === 0 ? `<span style="color:var(--success)">Ideal (0)</span>` : (brecha>0 ? `<span style="color:var(--success)">+${brecha}</span>` : `<span style="color:var(--danger)">${brecha}</span>`);
+            
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td style="font-weight:700;">${nombreArea}</td><td style="background:var(--bg-subtle); font-weight:700;">${d.totEsp}</td>
+                <td style="font-weight:700;">${tPres}</td><td style="font-weight:700;">${brStr}</td>`;
+            tbody.appendChild(tr);
+
+            // GAUGE CHART POR AREA
+            let pct = d.totEsp === 0 ? (tPres > 0 ? 100 : 0) : Math.round((tPres / d.totEsp) * 100);
+            let finalColor = pct < 80 ? '#FF3B30' : d.color; // Alerta roja si < 80%
+            
+            let cid = 'chart_' + chartIdCounter++;
+            let chartDiv = document.createElement('div');
+            chartDiv.innerHTML = `<div class="chart-title">${nombreArea}</div><div class="chart-box"><canvas id="${cid}"></canvas></div>`;
+            chartsContainer.appendChild(chartDiv);
+
+            let ctx = document.getElementById(cid).getContext('2d');
+            let newChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [pct, 100 - pct > 0 ? 100 - pct : 0],
+                        backgroundColor: [finalColor, emptyColor],
+                        borderWidth: 0,
+                        circumference: 360,
+                        cutout: '80%' // Grosor del anillo
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { tooltip: { enabled: false }, legend: { display: false } },
+                    elements: { center: { text: pct + "%", color: textColor } }
+                }
+            });
+            window.gaugeCharts.push(newChart);
+        }
+    }
+
+    function calcularResumenMes() {
+        let mesVal = document.getElementById('mesResumenArea').value; 
+        if(!mesVal) return; let [year, month] = mesVal.split('-');
+        let daysInMonth = new Date(year, month, 0).getDate();
+        
+        const tbodyArea = document.getElementById('tabla-hist-area'); 
+        if(tbodyArea) tbodyArea.innerHTML = '';
+        let areaStats = {}; db.areas.forEach(a => areaStats[a.nombre] = { p:0, a:0, lm:0, otros:0 });
+        
+        db.empleados.forEach(emp => {
+            let p=0, a=0, lm=0, v=0, otros=0;
+            for(let d = 1; d <= daysInMonth; d++) {
+                let dayStr = d < 10 ? '0'+d : ''+d; let fullDate = `${year}-${month}-${dayStr}`;
+                
+                let isValido = emp.activo || (emp.fechaBaja && fullDate <= emp.fechaBaja);
+                if (!isValido) continue;
+
+                let status = emp.asistencias[fullDate] || '';
+                if(status !== '') { 
+                    if(status==='P' || status==='EX') p++; 
+                    else if(status==='A') a++; 
+                    else if(status==='LM') lm++; 
+                    else if(status==='V') v++; 
+                    else if(status!=='D' && status!=='LB') otros++; 
+                }
+            }
+            if(areaStats[emp.area]) { areaStats[emp.area].p += p; areaStats[emp.area].a += a; areaStats[emp.area].lm += lm; areaStats[emp.area].otros += (v + otros); }
+        });
+
+        for(let area in areaStats) {
+            let st = areaStats[area]; let tr = document.createElement('tr');
+            tr.innerHTML = `<td style="font-weight:700;">${area}</td><td style="color:var(--success); font-weight:700;">${st.p}</td>
+                <td style="color:var(--danger); font-weight:700;">${st.a}</td><td>${st.lm}</td><td>${st.otros}</td>`;
+            if(tbodyArea) tbodyArea.appendChild(tr);
+        }
+    }
+
+    function calcularExtras() {
+        let fInicio = new Date(document.getElementById('extInicio').value + "T00:00:00");
+        let fFin = new Date(document.getElementById('extFin').value + "T00:00:00");
+        let nomFiltro = document.getElementById('filtroNomExt').value.toLowerCase();
+        if(fInicio > fFin) return alert("Rango de fechas inválido.");
+
+        const tbExtras = document.getElementById('tabla-extras-rango'); tbExtras.innerHTML = '';
+        const tbAtrasos = document.getElementById('tabla-atrasos-rango'); tbAtrasos.innerHTML = '';
+        const tbResumenArea = document.getElementById('tabla-hhee-resumen-area'); if(tbResumenArea) tbResumenArea.innerHTML = '';
+
+        let evExtras = []; let evAtrasos = [];
+        let resumenPorArea = {};
+        db.areas.forEach(a => resumenPorArea[a.nombre] = { horas: 0, bono: 0 });
+
+        db.empleados.forEach(emp => {
+            if(nomFiltro && !emp.nombre.toLowerCase().includes(nomFiltro)) return;
+            if(!resumenPorArea[emp.area]) resumenPorArea[emp.area] = { horas: 0, bono: 0 };
+
+            let cur = new Date(fInicio);
+            while(cur <= fFin) {
+                let dStr = cur.toISOString().split('T')[0];
+                if(emp.asistencias[dStr] === 'EX' && emp.extras[dStr]) {
+                    evExtras.push({ rut: emp.rut, area: emp.area, fecha: dStr, nombre: emp.nombre, tipo: 'Día Extra (EX)', horas: emp.extras[dStr].horas, tarifa: emp.extras[dStr].tipo, bono: emp.extras[dStr].bono });
+                    resumenPorArea[emp.area].horas += emp.extras[dStr].horas;
+                    resumenPorArea[emp.area].bono += emp.extras[dStr].bono;
+                }
+                if(emp.hhee[dStr]) {
+                    evExtras.push({ rut: emp.rut, area: emp.area, fecha: dStr, nombre: emp.nombre, tipo: 'Horas Extras (HHEE)', horas: emp.hhee[dStr].horas, tarifa: emp.hhee[dStr].tipo, bono: emp.hhee[dStr].bono });
+                    resumenPorArea[emp.area].horas += emp.hhee[dStr].horas;
+                    resumenPorArea[emp.area].bono += emp.hhee[dStr].bono;
+                }
+                if(emp.atrasos[dStr]) evAtrasos.push({ rut: emp.rut, fecha: dStr, nombre: emp.nombre, minutos: emp.atrasos[dStr].minutos, aut: emp.atrasos[dStr].autorizado?'Autorizado':'NO Autorizado' });
+                cur.setDate(cur.getDate() + 1);
+            }
+        });
+
+        evExtras.sort((a,b) => a.fecha > b.fecha ? 1 : -1); evAtrasos.sort((a,b) => a.fecha > b.fecha ? 1 : -1);
+
+        let sumaHoras = 0; let sumaBonos = 0;
+
+        evExtras.forEach(ev => {
+            let colorTipo = ev.tipo==='Horas Extras (HHEE)'?'color:var(--success);':'color:var(--accent);';
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td>${ev.fecha}</td><td style="font-weight:700;">${ev.nombre}</td><td>${ev.area}</td>
+                <td style="font-weight:700; ${colorTipo}">${ev.tipo}</td><td style="font-weight:700; text-align:center;">${ev.horas} h</td>
+                <td style="text-align:center;">${ev.tarifa}</td><td style="text-align:center; color:var(--success); font-weight:700;">$${ev.bono}</td>
+                <td style="text-align:center;"><button class="btn-outline" style="border-color:var(--danger); color:var(--danger); font-size:10px; padding:2px 6px;" onclick="eliminarEvento('${ev.rut}', '${ev.fecha}', '${ev.tipo}')">🗑️ Eliminar</button></td>`;
+            tbExtras.appendChild(tr);
+            
+            sumaHoras += ev.horas;
+            sumaBonos += ev.bono;
+        });
+
+        // Fila de Total Dinámica
+        if(evExtras.length > 0) {
+            let trTotal = document.createElement('tr');
+            trTotal.style.background = 'var(--bg-subtle)';
+            trTotal.innerHTML = `<td colspan="4" style="text-align:right; font-weight:900;">TOTALES DE LA LISTA:</td>
+                <td style="text-align:center; font-weight:900; font-size:14px;">${sumaHoras} h</td>
+                <td></td>
+                <td style="text-align:center; font-weight:900; font-size:14px; color:var(--success);">$${sumaBonos}</td>
+                <td></td>`;
+            tbExtras.appendChild(trTotal);
+        }
+
+        for (let area in resumenPorArea) {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td style="font-weight:700;">${area}</td><td style="text-align:center;">${resumenPorArea[area].horas} h</td><td style="text-align:center; color:var(--success); font-weight:700;">$${resumenPorArea[area].bono}</td>`;
+            if(tbResumenArea) tbResumenArea.appendChild(tr);
+        }
+
+        evAtrasos.forEach(ev => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td>${ev.fecha}</td><td style="font-weight:700;">${ev.nombre}</td>
+                <td style="font-weight:700; color:var(--danger); text-align:center;">${ev.minutos} min</td>
+                <td style="text-align:center; font-weight:700; color:${ev.aut==='Autorizado'?'var(--success)':'var(--danger)'};">${ev.aut}</td>
+                <td style="text-align:center;"><button class="btn-outline" style="border-color:var(--danger); color:var(--danger); font-size:10px; padding:2px 6px;" onclick="eliminarEvento('${ev.rut}', '${ev.fecha}', 'Atraso')">🗑️ Eliminar</button></td>`;
+            tbAtrasos.appendChild(tr);
+        });
+    }
+
+    function eliminarEvento(rut, fecha, tipo) {
+        if(!pedirClave()) return alert("Clave incorrecta.");
+        if(confirm(`¿Estás seguro de que deseas eliminar este registro de ${tipo} para la fecha ${fecha}?`)) {
+            let emp = db.empleados.find(e => e.rut === rut);
+            if(tipo === 'Atraso') { delete emp.atrasos[fecha]; } 
+            else if (tipo === 'Día Extra (EX)') { delete emp.extras[fecha]; } 
+            else if (tipo === 'Horas Extras (HHEE)') { delete emp.hhee[fecha]; }
+            guardarDB(); actualizarVistas();
+        }
+    }
+
+    /* ==========================================
+       PESTAÑA: HISTÓRICO MENSAL (GRILLA)
+       ========================================== */
+    function setSortHist(col) {
+        if(sortColGrid === col) sortAscGrid = !sortAscGrid; else { sortColGrid = col; sortAscGrid = true; }
+        renderHistorico();
+    }
+
+    function renderHistorico() {
+        let mesVal = document.getElementById('mesHistorico').value; 
+        let nomFiltro = document.getElementById('filtroNombreHist').value.toLowerCase();
+        let areaFiltro = document.getElementById('filtroAreaHist') ? document.getElementById('filtroAreaHist').value : 'Todas';
+
+        if(!mesVal) return; let [year, month] = mesVal.split('-');
+        let daysInMonth = new Date(year, month, 0).getDate();
+        let daysOfWeek = ['D','L','M','M','J','V','S'];
+
+        let sortIcon = sortAscGrid ? "↑" : "↓";
+        let H = (col, label) => `<th rowspan="2" onclick="setSortHist('${col}')" style="cursor:pointer; vertical-align: middle;">${label} <span style="color:var(--primary); font-size:10px;">${sortColGrid===col?sortIcon:''}</span></th>`;
+
+        let head1 = `<tr><th rowspan="2" style="vertical-align: middle;">N°</th>${H('rut','RUT')}${H('nombre','NOMBRE COMPLETO')}${H('empresa','EMPRESA')}${H('turno','TURNO')}${H('dim','DIMENSIONAMIENTO')}`;
+        let head2 = `<tr>`;
+        for(let d = 1; d <= daysInMonth; d++) { head1 += `<th>${d}</th>`; head2 += `<th>${daysOfWeek[new Date(year, month - 1, d).getDay()]}</th>`; }
+        head1 += `</tr>`; head2 += `</tr>`; document.getElementById('thead-hist-grid').innerHTML = head1 + head2;
+
+        const tbodyGrid = document.getElementById('tbody-hist-grid'); tbodyGrid.innerHTML = '';
+        let counter = 1;
+        
+        let empleadosFilter = db.empleados.filter(e => {
+            let matchNom = !nomFiltro || e.nombre.toLowerCase().includes(nomFiltro);
+            let matchArea = areaFiltro === 'Todas' || e.area === areaFiltro;
+            return matchNom && matchArea;
+        });
+
+        empleadosFilter.sort((a,b) => { let va = a[sortColGrid] || ""; let vb = b[sortColGrid] || ""; if(va < vb) return sortAscGrid ? -1 : 1; if(va > vb) return sortAscGrid ? 1 : -1; return 0; });
+
+        empleadosFilter.forEach(emp => {
+            let rowGrid = `<tr><td>${counter}</td><td>${emp.rut}</td><td style="font-weight:700;">${emp.nombre}</td><td>${emp.empresa}</td><td>${emp.turno}</td><td>${emp.dim}</td>`;
+            let tieneDataEnMes = false;
+
+            for(let d = 1; d <= daysInMonth; d++) {
+                let dWeek = new Date(year, month - 1, d).getDay(); let dayStr = d < 10 ? '0'+d : ''+d; let fullDate = `${year}-${month}-${dayStr}`;
+                
+                let isValido = emp.activo || (emp.fechaBaja && fullDate <= emp.fechaBaja);
+
+                let isFree = false;
+                if (emp.turno === 'NOCHE 1' && (dWeek === 6 || dWeek === 0)) isFree = true;
+                if (emp.turno === 'NOCHE 2' && (dWeek === 5 || dWeek === 6)) isFree = true;
+                
+                let status = isValido ? (emp.asistencias[fullDate] || '') : '-'; 
+                if(status !== '' && status !== '-') tieneDataEnMes = true;
+                
+                let colorCell = status === 'P' ? 'color:var(--success);' : (status==='EX' ? 'color:var(--accent);' : (status === 'A' ? 'color:var(--danger);' : (status === 'D' || status === '-' ? 'color:var(--text-muted);' : (status==='LB' ? 'color:var(--text-muted); font-weight:normal;' : 'color:var(--warning);'))));
+                let bgStyle = isFree ? `background-color: var(--bg-free);` : '';
+                rowGrid += `<td style="font-weight:800; ${colorCell} ${bgStyle}">${status}</td>`;
+            }
+            rowGrid += `</tr>`;
+            if(tieneDataEnMes || emp.activo) { tbodyGrid.innerHTML += rowGrid; counter++; }
+        });
+    }
+
+    /* ==========================================
+       PESTAÑA: PERMISOS Y LICENCIAS
+       ========================================== */
+    function asignarPermisoRango() {
+        let rut = document.getElementById('permColab').value; let tipo = document.getElementById('permTipo').value;
+        let fInit = document.getElementById('permInicio').value; let fFin = document.getElementById('permFin').value;
+        if(!rut || !tipo || !fInit || !fFin) return alert("Completa todos los campos.");
+        
+        let startDate = new Date(fInit + "T00:00:00"); let endDate = new Date(fFin + "T00:00:00");
+        if(startDate > endDate) return alert("La fecha de inicio no puede ser mayor que la de fin.");
+        let emp = db.empleados.find(e => e.rut === rut); let currentDate = new Date(startDate);
+        while(currentDate <= endDate) { emp.asistencias[currentDate.toISOString().split('T')[0]] = tipo; currentDate.setDate(currentDate.getDate() + 1); }
+        guardarDB(); actualizarVistas(); alert(`Permiso asignado exitosamente.`);
+    }
+
+    function eliminarPermiso(rut, fecha) {
+        if(!pedirClave()) return alert("Clave incorrecta.");
+        if(confirm(`¿Eliminar permiso registrado en la fecha ${fecha}?`)) {
+            let emp = db.empleados.find(e => e.rut === rut); delete emp.asistencias[fecha];
+            guardarDB(); renderPermisos(); calcularResumenHoy();
+        }
+    }
+
+    function renderPermisos() {
+        let mesVal = document.getElementById('mesPermisos').value; 
+        let diaFiltro = document.getElementById('filtroDiaPermiso').value;
+        let areaFiltro = document.getElementById('filtroAreaPermisosVer') ? document.getElementById('filtroAreaPermisosVer').value : 'Todas';
+        if(!mesVal) return; let [year, month] = mesVal.split('-'); let daysInMonth = new Date(year, month, 0).getDate();
+        
+        const tbDetalle = document.getElementById('tabla-detalle-permisos'); tbDetalle.innerHTML = '';
+        const tbResumen = document.getElementById('tabla-resumen-permisos'); tbResumen.innerHTML = '';
+
+        let resumenDiario = {};
+        for(let i=1; i<=daysInMonth; i++) { resumenDiario[i] = { C:0, LM:0, V:0, PG:0, PS:0, ADM:0, CM:0, total:0 }; }
+
+        db.empleados.forEach(emp => {
+            if (areaFiltro !== 'Todas' && emp.area !== areaFiltro) return;
+
+            for(let fecha in emp.asistencias) {
+                if(fecha.startsWith(mesVal)) {
+                    if (diaFiltro && fecha !== diaFiltro) continue;
+                    
+                    let sigla = emp.asistencias[fecha];
+                    if(['C','LM','V','PG','PS','ADM','CM'].includes(sigla)) {
+                        let dInt = parseInt(fecha.split('-')[2]);
+                        if(resumenDiario[dInt]) { resumenDiario[dInt][sigla]++; resumenDiario[dInt].total++; }
+
+                        let tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${fecha}</td><td>${emp.area}</td><td style="font-weight:700;">${emp.nombre}</td>
+                                        <td style="font-weight:700; color:var(--accent); text-align:center;">${sigla}</td>
+                                        <td style="text-align:center;"><button class="btn-outline" style="border-color:var(--danger); color:var(--danger); font-size:10px; padding:2px 6px;" onclick="eliminarPermiso('${emp.rut}', '${fecha}')">🗑️ Eliminar</button></td>`;
+                        tbDetalle.appendChild(tr);
+                    }
+                }
+            }
+        });
+
+        let rows = Array.from(tbDetalle.rows); rows.sort((a,b) => a.cells[0].innerText > b.cells[0].innerText ? 1 : -1);
+        tbDetalle.innerHTML = ''; rows.forEach(r => tbDetalle.appendChild(r));
+
+        for(let d=1; d<=daysInMonth; d++) {
+            let rd = resumenDiario[d];
+            if(rd.total > 0) {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `<td style="font-weight:700;">Día ${d}</td><td>${rd.C}</td><td>${rd.LM}</td><td>${rd.V}</td><td>${rd.PG}</td><td>${rd.PS}</td><td>${rd.ADM}</td><td>${rd.CM}</td><td style="font-weight:700; color:var(--danger);">${rd.total}</td>`;
+                tbResumen.appendChild(tr);
+            }
+        }
+    }
+
+    /* ==========================================
+       PESTAÑA: GESTIÓN DE PERSONAL Y REPOSICIÓN
+       ========================================== */
+    function setSortGest(col) {
+        if(sortColGest === col) sortAscGest = !sortAscGest; else { sortColGest = col; sortAscGest = true; }
+        renderGestion();
+    }
+
+    function renderDesplegablesFormulario() {
+        let valAsis = document.getElementById('filtroAreaAsistencia') ? document.getElementById('filtroAreaAsistencia').value : 'Todas';
+        let valHist = document.getElementById('filtroAreaHist') ? document.getElementById('filtroAreaHist').value : 'Todas';
+        let valGest = document.getElementById('filtroAreaGestion') ? document.getElementById('filtroAreaGestion').value : 'Todas';
+        let valPermAsig = document.getElementById('filtroAreaPermisoAsignar') ? document.getElementById('filtroAreaPermisoAsignar').value : 'Todas';
+        let valPermVer = document.getElementById('filtroAreaPermisosVer') ? document.getElementById('filtroAreaPermisosVer').value : 'Todas';
+        let valDir = document.getElementById('filtroAreaDirectorio') ? document.getElementById('filtroAreaDirectorio').value : 'Todas';
+
+        const agArea = document.getElementById('addArea'); agArea.innerHTML = '';
+        
+        const fAsis = document.getElementById('filtroAreaAsistencia'); if(fAsis) fAsis.innerHTML = '<option value="Todas">Todas las Áreas</option>';
+        const fHist = document.getElementById('filtroAreaHist'); if(fHist) fHist.innerHTML = '<option value="Todas">Todas las Áreas</option>';
+        const fGest = document.getElementById('filtroAreaGestion'); if(fGest) fGest.innerHTML = '<option value="Todas">Todas las Áreas</option>';
+        const fPermAsig = document.getElementById('filtroAreaPermisoAsignar'); if(fPermAsig) fPermAsig.innerHTML = '<option value="Todas">Todas las Áreas</option>';
+        const fPermVer = document.getElementById('filtroAreaPermisosVer'); if(fPermVer) fPermVer.innerHTML = '<option value="Todas">Todas las Áreas</option>';
+        const fDir = document.getElementById('filtroAreaDirectorio'); if(fDir) fDir.innerHTML = '<option value="Todas">Todas las Áreas</option>';
+
+        db.areas.forEach(a => { 
+            agArea.innerHTML += `<option value="${a.nombre}">${a.nombre}</option>`; 
+            if(fAsis) fAsis.innerHTML += `<option value="${a.nombre}">${a.nombre}</option>`; 
+            if(fHist) fHist.innerHTML += `<option value="${a.nombre}">${a.nombre}</option>`;
+            if(fGest) fGest.innerHTML += `<option value="${a.nombre}">${a.nombre}</option>`;
+            if(fPermAsig) fPermAsig.innerHTML += `<option value="${a.nombre}">${a.nombre}</option>`;
+            if(fPermVer) fPermVer.innerHTML += `<option value="${a.nombre}">${a.nombre}</option>`;
+            if(fDir) fDir.innerHTML += `<option value="${a.nombre}">${a.nombre}</option>`;
+        });
+        
+        if(fAsis) fAsis.value = valAsis;
+        if(fHist) fHist.value = valHist;
+        if(fGest) fGest.value = valGest;
+        if(fPermAsig) fPermAsig.value = valPermAsig;
+        if(fPermVer) fPermVer.value = valPermVer;
+        if(fDir) fDir.value = valDir;
+
+        const agEmpresa = document.getElementById('addEmpresa'); agEmpresa.innerHTML = ''; db.empresas.forEach(e => agEmpresa.innerHTML += `<option value="${e}">${e}</option>`);
+        const agDim = document.getElementById('addDim'); agDim.innerHTML = ''; db.dims.forEach(d => agDim.innerHTML += `<option value="${d}">${d}</option>`);
+        
+        const pColab = document.getElementById('permColab'); pColab.innerHTML = ''; 
+        let empPermisos = db.empleados.filter(e => e.activo && (valPermAsig === 'Todas' || e.area === valPermAsig));
+        empPermisos.forEach(e => pColab.innerHTML += `<option value="${e.rut}">${e.nombre}</option>`);
+        
+        const pTipo = document.getElementById('permTipo'); pTipo.innerHTML = '';
+        opcionesAsistencia.forEach(op => { if(!['P','A','D','LB','EX'].includes(op.v)) pTipo.innerHTML += `<option value="${op.v}">${op.v} - ${op.t}</option>`; });
+    }
+
+    function renderGestion() {
+        const tbody = document.getElementById('tabla-gestion-body'); tbody.innerHTML = '';
+        const tbodyReem = document.getElementById('tabla-reemplazos'); 
+        if(tbodyReem) {
+            tbodyReem.innerHTML = '';
+            let areaNombres = db.areas.map(a => a.nombre);
+            let desvinculadosPorArea = {}; db.areas.forEach(a => desvinculadosPorArea[a.nombre] = []);
+
+            db.empleados.forEach(emp => {
+                if(!emp.activo && !emp.reposicionSolicitada && desvinculadosPorArea[emp.area]) { 
+                    desvinculadosPorArea[emp.area].push({ rut: emp.rut, nombre: emp.nombre, empresa: emp.empresa, area: emp.area, turno: emp.turno }); 
+                }
+            });
+
+            for(let area in desvinculadosPorArea) {
+                let lista = desvinculadosPorArea[area];
+                if(lista.length > 0) {
+                    lista.forEach(d => {
+                        let tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${d.rut}</td><td style="font-weight:700;">${d.nombre}</td><td>${d.empresa}</td><td>${d.area}</td><td>${d.turno}</td>`;
+                        tbodyReem.appendChild(tr);
+                    });
+                }
+            }
+        }
+
+        let areaFiltro = document.getElementById('filtroAreaGestion') ? document.getElementById('filtroAreaGestion').value : 'Todas';
+        let sortIcon = sortAscGest ? "↑" : "↓";
+        let H = (col, label) => `<th onclick="setSortGest('${col}')">${label} <span style="color:var(--primary); font-size:10px;">${sortColGest===col?sortIcon:''}</span></th>`;
+        document.getElementById('thead-gestion').innerHTML = `<tr>${H('rut','RUT')}${H('nombre','Nombre')}${H('empresa','Empresa')}${H('area','Área')}${H('dim','Dimensión')}${H('turno','Turno')}<th>Dir/Com/Num</th><th>Estado</th><th>Acciones</th></tr>`;
+
+        let arr = db.empleados.filter(e => areaFiltro === 'Todas' || e.area === areaFiltro);
+        arr.sort((a,b) => { 
+            let va = a[sortColGest] || ""; let vb = b[sortColGest] || ""; 
+            if(va < vb) return sortAscGest ? -1 : 1; 
+            if(va > vb) return sortAscGest ? 1 : -1; 
+            return 0; 
+        });
+
+        let areaNombres = db.areas.map(a => a.nombre);
+
+        arr.forEach(emp => {
+            let estado = emp.activo ? `<span style="color:var(--success); font-weight:700;">Activo</span>` : `<span style="color:var(--danger); font-weight:700;">Desv. ${emp.fechaBaja?'('+emp.fechaBaja+')':''}</span>`;
+            
+            let iNom = `<input type="text" class="form-control" style="min-width:120px;" value="${emp.nombre}" onchange="updateEmp('${emp.rut}', 'nombre', this.value)">`;
+            let sEmp = generarSelect(db.empresas, emp.empresa, `updateEmp('${emp.rut}', 'empresa', this.value)`);
+            let sAre = generarSelect(areaNombres, emp.area, `updateEmp('${emp.rut}', 'area', this.value)`);
+            let sDim = generarSelect(db.dims, emp.dim, `updateEmp('${emp.rut}', 'dim', this.value)`);
+            let sTur = generarSelect(["NOCHE 1", "NOCHE 2"], emp.turno, `updateEmp('${emp.rut}', 'turno', this.value)`);
+            
+            let domDir = `<div style="display:flex; flex-direction:column; gap:4px; min-width:120px;"><input type="text" class="form-control" placeholder="Dir" value="${emp.direccion}" onchange="updateEmp('${emp.rut}','direccion',this.value)"><div style="display:flex; gap:4px;"><input type="text" class="form-control" placeholder="Comuna" value="${emp.comuna}" onchange="updateEmp('${emp.rut}','comuna',this.value)"><input type="text" class="form-control" placeholder="N°" style="width:50px;" value="${emp.numero}" onchange="updateEmp('${emp.rut}','numero',this.value)"></div></div>`;
+
+            let btnEst = emp.activo ? `<button class="btn-outline" style="color:var(--warning-dark); font-size:10px; padding:4px;" onclick="cambiarEstadoGlobal('${emp.rut}', false)">Desvincular</button>` : `<button class="btn-outline" style="color:var(--success); font-size:10px; padding:4px;" onclick="cambiarEstadoGlobal('${emp.rut}', true)">Reactivar</button>`;
+            let btnDel = `<button class="btn-outline" style="color:white; background:var(--danger); border-color:var(--danger); font-size:10px; padding:4px; margin-top:4px; width:100%;" onclick="eliminarColaborador('${emp.rut}')">🗑️ Borrar</button>`;
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td>${emp.rut}</td><td>${iNom}</td><td>${sEmp}</td><td>${sAre}</td><td>${sDim}</td><td>${sTur}</td><td>${domDir}</td><td style="text-align:center;">${estado}</td><td style="display:flex; flex-direction:column;">${btnEst}${btnDel}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updateEmp(rut, campo, valor) { let emp = db.empleados.find(e => e.rut === rut); if(emp) { emp[campo] = valor; guardarDB(); } }
+
+    function cambiarEstadoGlobal(rut, activar) {
+        if(!activar && !pedirClave()) return alert("Clave incorrecta.");
+        let emp = db.empleados.find(e => e.rut === rut);
+        if(!activar) { let fBaja = prompt("Ingrese la fecha EFECTIVA de desvinculación (YYYY-MM-DD):", fechaSelect.value); if(!fBaja) return; emp.fechaBaja = fBaja; } 
+        else { emp.fechaBaja = null; }
+        emp.activo = activar; if(activar) emp.reposicionSolicitada = false; 
+        emp.asistencias[fechaSelect.value] = activar ? 'P' : 'D';
+        guardarDB(); actualizarVistas();
+    }
+
+    function eliminarColaborador(rut) {
+        if(!pedirClave()) return alert("Clave incorrecta.");
+        let idx = db.empleados.findIndex(e => e.rut === rut);
+        if(confirm(`⚠️ PELIGRO: Vas a eliminar por completo a ${db.empleados[idx].nombre}. ¿Estás seguro?`)) { db.empleados.splice(idx, 1); guardarDB(); actualizarVistas(); }
+    }
+
+    function marcarReposicionSolicitada() { db.empleados.forEach(e => { if(!e.activo) e.reposicionSolicitada = true; }); guardarDB(); renderGestion(); }
+
+    function agregarColaboradorManual() {
+        let r = document.getElementById('addRut').value.trim(); let n = document.getElementById('addNombre').value.trim();
+        if(!r || !n) return alert("RUT y Nombre son obligatorios.");
+        let existe = db.empleados.find(e => e.rut === r);
+        if(existe) {
+            existe.nombre = n; existe.empresa = document.getElementById('addEmpresa').value; existe.area = document.getElementById('addArea').value; existe.dim = document.getElementById('addDim').value;
+            existe.turno = document.getElementById('addTurno').value; existe.activo = true; existe.reposicionSolicitada = false; existe.fechaBaja = null;
+        } else {
+            db.empleados.push({ rut: r, nombre: n, empresa: document.getElementById('addEmpresa').value, area: document.getElementById('addArea').value, dim: document.getElementById('addDim').value, turno: document.getElementById('addTurno').value, direccion: "", comuna: "", numero: "", activo: true, fechaBaja: null, asistencias: {}, atrasos: {}, hhee: {}, extras: {}, transporte: {}, reposicionSolicitada: false });
+        }
+        document.getElementById('addRut').value = ''; document.getElementById('addNombre').value = '';
+        guardarDB(); actualizarVistas(); alert("Guardado con éxito.");
+    }
+
+    function procesarMasivoUnificado() {
+        let texto = document.getElementById('txtPegarPersonal').value;
+        if(!texto.trim()) return; let cont = 0;
+        let tEmp = document.getElementById('addEmpresa').value; let tArea = document.getElementById('addArea').value;
+        let tDim = document.getElementById('addDim').value; let tTurno = document.getElementById('addTurno').value;
+        let filas = texto.split('\n'); let newEmpresas = new Set(); let newAreas = new Set(); let newDims = new Set(); let records = [];
+
+        filas.forEach(fila => {
+            let cols = fila.split('\t'); if(cols.length < 2) return;
+            let rut = cols[0].trim(); if(!rut || rut.toLowerCase().includes('rut')) return;
+            let cNom = cols[1]?cols[1].trim():""; let cEmp = cols[2]?cols[2].trim():""; let cAre = cols[3]?cols[3].trim():""; 
+            let cDim = cols[4]?cols[4].trim():""; let cTur = cols[5]?cols[5].trim():""; let cDir = cols[6]?cols[6].trim():"";
+            let cCom = cols[7]?cols[7].trim():""; let cNum = cols[8]?cols[8].trim():"";
+            records.push({rut, cNom, cEmp, cAre, cDim, cTur, cDir, cCom, cNum, colsLen: cols.length});
+            if (cEmp && !db.empresas.some(e => e.toUpperCase() === cEmp.toUpperCase())) newEmpresas.add(cEmp);
+            if (cAre && !db.areas.some(a => a.nombre.toUpperCase() === cAre.toUpperCase())) newAreas.add(cAre);
+            if (cDim && !db.dims.some(d => d.toUpperCase() === cDim.toUpperCase())) newDims.add(cDim);
+        });
+
+        for(let e of newEmpresas) { if(confirm(`La Empresa "${e}" no existe. ¿Deseas crearla?`)) db.empresas.push(e); }
+        for(let a of newAreas) { if(confirm(`El Área "${a}" no existe. ¿Deseas crearla?`)) db.areas.push({ id: Date.now(), nombre: a, n1: 0, n2: 0, color: "#0A84FF" }); }
+        for(let d of newDims) { if(confirm(`El Dimensionamiento "${d}" no existe. ¿Deseas crearlo?`)) db.dims.push(d); }
+
+        records.forEach(r => {
+            let emp = db.empleados.find(e => e.rut === r.rut);
+            if(emp) {
+                emp.nombre = r.cNom || emp.nombre;
+                if (r.colsLen > 2) {
+                    if (r.cEmp) emp.empresa = r.cEmp; if (r.cAre) emp.area = r.cAre; if (r.cDim) emp.dim = r.cDim;
+                    if (r.cTur) emp.turno = r.cTur; if (r.cDir !== undefined) emp.direccion = r.cDir;
+                    if (r.cCom !== undefined) emp.comuna = r.cCom; if (r.cNum !== undefined) emp.numero = r.cNum;
+                } else {
+                    emp.empresa = tEmp; emp.area = tArea; emp.dim = tDim; emp.turno = tTurno;
+                }
+                emp.activo = true; emp.reposicionSolicitada = false; emp.fechaBaja = null;
+            } else {
+                db.empleados.push({ 
+                    rut: r.rut, nombre: r.cNom, empresa: r.cEmp || tEmp, area: r.cAre || tArea, dim: r.cDim || tDim, turno: r.cTur || tTurno, 
+                    direccion: r.cDir || "", comuna: r.cCom || "", numero: r.cNum || "", 
+                    activo: true, fechaBaja: null, asistencias: {}, atrasos: {}, hhee: {}, extras: {}, transporte: {}, reposicionSolicitada: false 
+                });
+            }
+            cont++;
+        });
+
+        document.getElementById('txtPegarPersonal').value = ''; 
+        guardarDB(); actualizarVistas(); alert(`Procesados: ${cont}`);
+    }
+
+    /* ==========================================
+       PESTAÑA: DIRECCIONES Y TRANSPORTE
+       ========================================== */
+    function renderTransporteDomingo() {
+        let dom = document.getElementById('fechaTransporte').value; let diaObj = new Date(dom + "T12:00:00");
+        let isSunday = diaObj.getDay() === 0;
+
+        const tbody = document.getElementById('tabla-transporte-body'); tbody.innerHTML = '';
+        const tRaw = document.getElementById('tabla-transporte-raw'); tRaw.innerHTML = '<tr><th>RUT</th><th>Nombre</th><th>Turno Base</th><th>Área</th><th>Dirección</th><th>Comuna</th><th>Número</th></tr>';
+
+        let validos = db.empleados.filter(e => e.activo || (e.fechaBaja && dom <= e.fechaBaja));
+
+        validos.forEach(emp => {
+            let transData = emp.transporte[dom] || { propio: false, eliminado: false, agregadoManual: false };
+            if(transData.eliminado) return;
+
+            let isNoche2 = (emp.turno === 'NOCHE 2'); let isExtra = (emp.asistencias[dom] === 'EX');
+            
+            if((isSunday && isNoche2) || isExtra || transData.agregadoManual) {
+                let tipoRuta = transData.agregadoManual ? '(Manual)' : (isExtra ? '(EX)' : '');
+                let chkPropio = `<input type="checkbox" ${transData.propio ? 'checked' : ''} onchange="toggleMovilPropio('${emp.rut}', '${dom}', this.checked)">`;
+                let btnDel = `<button class="btn-outline" style="color:var(--danger); font-size:10px; padding:2px 6px;" onclick="eliminarTransporte('${emp.rut}', '${dom}')">✖ Quitar</button>`;
+                
+                let tr = document.createElement('tr');
+                tr.innerHTML = `<td>${emp.rut}</td><td style="font-weight:700;">${emp.nombre}</td>
+                    <td><span class="badge" style="background:var(--bg-subtle); border:1px solid var(--border); padding:2px 4px;">${emp.turno} ${tipoRuta}</span></td>
+                    <td>${emp.area}</td><td>${emp.direccion}</td><td>${emp.comuna}</td><td style="font-weight:700;">${emp.numero}</td>
+                    <td style="text-align:center;">${chkPropio}</td><td style="text-align:center;">${btnDel}</td>`;
+                tbody.appendChild(tr);
+
+                if(!transData.propio) {
+                    let trRaw = document.createElement('tr');
+                    trRaw.innerHTML = `<td>${emp.rut}</td><td>${emp.nombre}</td><td>${emp.turno}</td><td>${emp.area}</td><td>${emp.direccion}</td><td>${emp.comuna}</td><td>${emp.numero}</td>`;
+                    tRaw.appendChild(trRaw);
+                }
+            }
+        });
+    }
+
+    function toggleMovilPropio(rut, fecha, valor) { let emp = db.empleados.find(e => e.rut === rut); if(!emp.transporte[fecha]) emp.transporte[fecha] = {}; emp.transporte[fecha].propio = valor; guardarDB(); renderTransporteDomingo(); }
+    function eliminarTransporte(rut, fecha) { let emp = db.empleados.find(e => e.rut === rut); if(!emp.transporte[fecha]) emp.transporte[fecha] = {}; emp.transporte[fecha].eliminado = true; guardarDB(); actualizarVistas(); }
+    
+    function agregarManualTransporte(rut) {
+        let dom = document.getElementById('fechaTransporte').value;
+        if(!rut || !dom) return; let emp = db.empleados.find(e => e.rut === rut); 
+        if(!emp.transporte[dom]) emp.transporte[dom] = {};
+        emp.transporte[dom].agregadoManual = true; emp.transporte[dom].eliminado = false; 
+        guardarDB(); actualizarVistas();
+    }
+
+    function setSortDir(col) { if(sortColDir === col) sortAscDir = !sortAscDir; else { sortColDir = col; sortAscDir = true; } renderDirecciones(); }
+
+    function renderDirecciones() {
+        let dom = document.getElementById('fechaTransporte').value;
+        let areaFiltro = document.getElementById('filtroAreaDirectorio') ? document.getElementById('filtroAreaDirectorio').value : 'Todas';
+
+        const tbody = document.getElementById('tabla-direcciones-body'); tbody.innerHTML = '';
+        const tRaw = document.getElementById('tabla-direcciones-raw'); tRaw.innerHTML = '<tr><th>RUT</th><th>Nombre</th><th>Turno</th><th>Dirección</th><th>Comuna</th><th>Número</th></tr>';
+        
+        let sortIcon = sortAscDir ? "↑" : "↓";
+        let H = (col, label) => `<th onclick="setSortDir('${col}')">${label} <span style="color:var(--primary); font-size:10px;">${sortColDir===col?sortIcon:''}</span></th>`;
+        document.getElementById('thead-direcciones').innerHTML = `<tr>${H('rut','RUT')}${H('nombre','Nombre')}${H('turno','Turno')}${H('direccion','Dirección')}${H('comuna','Comuna')}${H('numero','Número')}<th>Transporte (${dom})</th></tr>`;
+
+        let validos = db.empleados.filter(e => e.activo || (e.fechaBaja && dom <= e.fechaBaja));
+        if (areaFiltro !== 'Todas') validos = validos.filter(e => e.area === areaFiltro);
+
+        let arr = [...validos];
+        arr.sort((a,b) => { let va=a[sortColDir] || ""; let vb=b[sortColDir] || ""; if(va<vb) return sortAscDir?-1:1; if(va>vb) return sortAscDir?1:-1; return 0; });
+
+        let diaObj = new Date(dom + "T12:00:00"); let isSunday = diaObj.getDay() === 0;
+
+        arr.forEach(emp => {
+            let isNoche2 = (emp.turno === 'NOCHE 2'); let isExtra = (emp.asistencias[dom] === 'EX');
+            let trData = emp.transporte[dom] || {};
+            let isEnNomina = (!trData.eliminado && ((isSunday && isNoche2) || isExtra || trData.agregadoManual));
+
+            let btnTrans = isEnNomina ? `<span style="color:var(--success); font-weight:700; font-size:10px;">✅ En Nómina</span>` : `<button class="btn-outline" style="border-color:var(--accent); color:var(--accent); font-size:10px; padding:2px 6px;" onclick="agregarManualTransporte('${emp.rut}')">➕ Añadir</button>`;
+            
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td>${emp.rut}</td><td style="font-weight:700;">${emp.nombre}</td><td>${emp.turno}</td>
+                <td><input type="text" class="form-control" value="${emp.direccion}" onchange="updateEmp('${emp.rut}','direccion',this.value)"></td>
+                <td><input type="text" class="form-control" value="${emp.comuna}" onchange="updateEmp('${emp.rut}','comuna',this.value)"></td>
+                <td><input type="text" class="form-control" value="${emp.numero}" onchange="updateEmp('${emp.rut}','numero',this.value)"></td>
+                <td style="text-align:center;">${btnTrans}</td>`;
+            tbody.appendChild(tr);
+            let trRaw = document.createElement('tr');
+            trRaw.innerHTML = `<td>${emp.rut}</td><td>${emp.nombre}</td><td>${emp.turno}</td><td>${emp.direccion}</td><td>${emp.comuna}</td><td>${emp.numero}</td>`;
+            tRaw.appendChild(trRaw);
+        });
+    }
+
+    function exportarTransporteExcel() { exportarExcel('tabla-transporte-raw', 'Nomina_Transporte'); }
+    function exportarExcel(tableID, filename = 'Export') {
+        var elt = document.getElementById(tableID);
+        var wb = XLSX.utils.table_to_book(elt, {sheet:"Hoja1"});
+        XLSX.writeFile(wb, filename + ".xlsx");
+    }
+
+    /* ==========================================
+       PESTAÑA: PARÁMETROS
+       ========================================== */
+    function renderParametros() {
+        const tbodyA = document.getElementById('tabla-par-areas'); tbodyA.innerHTML = '';
+        db.areas.forEach((a, index) => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td><b>${a.nombre}</b></td>
+                <td style="text-align:center;"><input type="color" value="${a.color || '#007AFF'}" onchange="updateArea(${index}, 'color', this.value)" style="padding:0; border:none; border-radius:4px; width:30px; height:30px; cursor:pointer;"></td>
+                <td><input type="number" class="form-control" style="width:60px;" value="${a.n1}" onchange="updateArea(${index}, 'n1', this.value)"></td>
+                <td><input type="number" class="form-control" style="width:60px;" value="${a.n2}" onchange="updateArea(${index}, 'n2', this.value)"></td>
+                <td style="color:var(--primary); font-weight:700;">${a.n1 + a.n2}</td>
+                <td><button class="btn-icon" onclick="deleteArea(${index})">✖</button></td>`;
+            tbodyA.appendChild(tr);
+        });
+        const renderList = (arrayName, ulId) => {
+            const ul = document.getElementById(ulId); ul.innerHTML = '';
+            db[arrayName].forEach((item, idx) => { ul.innerHTML += `<li style="margin-bottom:8px;">${item} <button class="btn-icon" style="font-size:10px; margin-left:10px;" onclick="deleteParam('${arrayName}', ${idx})">✖</button></li>`; });
+        };
+        renderList('empresas', 'lista-empresas'); renderList('dims', 'lista-dims');
+    }
+
+    function updateArea(idx, field, val) { 
+        if(!pedirClave()) { renderParametros(); return alert("Clave incorrecta."); }
+        if (field === 'color') { db.areas[idx][field] = val; }
+        else { db.areas[idx][field] = parseInt(val) || 0; }
+        guardarDB(); actualizarVistas(); 
+    }
+    function addArea() {
+        if(!pedirClave()) return alert("Clave incorrecta.");
+        let nom = document.getElementById('parArea').value; let col = document.getElementById('parColor').value;
+        let n1 = parseInt(document.getElementById('parN1').value) || 0; let n2 = parseInt(document.getElementById('parN2').value) || 0;
+        if(!nom) return alert("Ingresa un nombre de área.");
+        db.areas.push({ id: Date.now(), nombre: nom, color: col, n1: n1, n2: n2 });
+        document.getElementById('parArea').value = ''; document.getElementById('parN1').value = '0'; document.getElementById('parN2').value = '0';
+        guardarDB(); actualizarVistas();
+    }
+    function deleteArea(idx) { if(!pedirClave()) return alert("Clave incorrecta."); db.areas.splice(idx, 1); guardarDB(); actualizarVistas(); }
+    function addParam(arrayName, inputId) {
+        if(!pedirClave()) return alert("Clave incorrecta.");
+        let val = document.getElementById(inputId).value.toUpperCase();
+        if(!val) return; if(!db[arrayName].includes(val)) db[arrayName].push(val);
+        document.getElementById(inputId).value = ''; guardarDB(); actualizarVistas();
+    }
+    function deleteParam(arrayName, idx) { if(!pedirClave()) return alert("Clave incorrecta."); db[arrayName].splice(idx, 1); guardarDB(); actualizarVistas(); }
+
+</script>
+
+</body>
+</html>
